@@ -425,7 +425,7 @@ static int counterPacket=1;
   const int module_x = 1;  // Define the module number
   uint8_t next;
   uint8_t following_mod_x;
-  volatile bool packetReady_2Dec = false;
+  volatile bool ready2transmit = false;
   volatile bool received_data = false;
   volatile bool trans_conf = false;
   //Interrupt counters
@@ -577,15 +577,17 @@ int main(void)
  //P2P_Init();
   //AppMasterBoard();
   AppMasterBoardV2();
+  //HAL_TIM_Base_Start_IT(&htim3);
  // sprintf(msgStatus, "\r\n This the main LOOP \r\n");
   //HAL_UART_Transmit(&huart2, (uint8_t *)msgStatus, strlen(msgStatus),HAL_MAX_DELAY);
   //HAL_SPI_Receive_IT(&hspi2, rxData_getProtocol, sizeof(rxData_getProtocol));
  //HAL_SPI_Transmit_IT(&hspi2, Buffer_Src, sizeof(Buffer_Src));
- //HAL_TIM_Base_Start_IT(&htim3);
+
+
 
 	//HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
 	//HAL_SPI_Receive_IT(&hspi2, &spi_rx_buffer, 1);
-	//HAL_TIM_Base_Start_IT(&htim3);
+	HAL_TIM_Base_Start_IT(&htim3);
 
 
 
@@ -848,9 +850,9 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 15;
+  htim3.Init.Prescaler = 127;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 49999;
+  htim3.Init.Period = 62499;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
@@ -2431,6 +2433,7 @@ void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi){
 
 		//Clear buffers
 		memset(combined_message, 0, sizeof(combined_message)); // Clear the transmit buffer
+		//HAL_TIM_Base_Stop_IT(&htim3);
 		spi_count_tx++;
 
 
@@ -2926,6 +2929,7 @@ void AppMasterBoardV2()
 	int last_transmission_stateV2 = 0;
 
 	while(1){
+
 		// print state every time there's a change
 
 		if (transmission_stateV2 != last_transmission_stateV2){
@@ -2963,8 +2967,15 @@ void AppMasterBoardV2()
 
 			sprintf(msgStatus, "\r\n Transmit state: %d \r\n", transmission_stateV2);
 			HAL_UART_Transmit(&huart2, (uint8_t *)msgStatus, strlen(msgStatus), HAL_MAX_DELAY);
-			start_transmission();
+
+			if (ready2transmit == true){
+				start_transmission();
+				ready2transmit = false;
+
+			}
+
 			check_time = HAL_GetTick();
+			//check_time = __HAL_TIM_GET_COUNTER(&htim3);
       if (module_x >= 1 && module_x <= 4 && trans_conf == true)
       {
         // I think this line should be changed
@@ -3001,16 +3012,15 @@ void AppMasterBoardV2()
       }
       if (true == shouldTransmit)
       {
-        sprintf(msgStatus, "\r\n Time to transmit %lu \r\n", (HAL_GetTick() - check_time));
-        HAL_UART_Transmit(&huart2, (uint8_t *)msgStatus, strlen(msgStatus), HAL_MAX_DELAY);
-        if((HAL_GetTick() - check_time) >= 1000)
-        {
+        //if((HAL_GetTick() - check_time) >= 1000)
+        //{
           sprintf(msgStatus, "\r\n changing state to TRANSMISSIONV2 \r\n");
           HAL_UART_Transmit(&huart2, (uint8_t *)msgStatus, strlen(msgStatus), HAL_MAX_DELAY);
-          check_time = HAL_GetTick();
+          //check_time = HAL_GetTick();
+          //HAL_TIM_Base_Start_IT(&htim3);
           shouldTransmit = false;
           transmission_stateV2 = TRANSMISSIONV2;
-        }
+        //}
       }
 
 
@@ -3231,6 +3241,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 
 		sprintf(msgStatus, "\r\n Timer callback executed \r\n");
 		//HAL_UART_Transmit(&huart2, (uint8_t *)msgStatus, strlen(msgStatus), HAL_MAX_DELAY);
+		/*
 		// Check if SPI is ready before starting new transmission
 		 if (HAL_SPI_GetState(&hspi2) == HAL_SPI_STATE_READY) {
 			 start_transmission();
@@ -3239,8 +3250,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 			 sprintf(msgStatus, "\r\n SPI is busy, skipping transmission \r\n");
 			 HAL_UART_Transmit(&huart2, (uint8_t *)msgStatus, strlen(msgStatus), HAL_MAX_DELAY);
 		}
-		//HAL_TIM_Base_Stop_IT(&htim3);
-		  tim_count++;
+		//HAL_TIM_Base_Stop_IT(&htim3);*/
+		ready2transmit = true;
+		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+		tim_count++;
+
+
+
 
 
 
